@@ -1,8 +1,13 @@
+import os
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 # from PIL import ImageTk, Image
 import sqlite3
+import requests
+from tqdm import tqdm
+
+path = os.path.dirname(os.path.abspath(__file__))
 
 window = Tk()
 # background color
@@ -11,18 +16,15 @@ window["bg"] = "#fafafa"
 window.title("PDF Downloader")
 # size
 window.geometry("700x500")
-import os
-
-path = os.path.dirname(os.path.abspath(__file__))
 
 
 def getElement(event):
   selection = event.widget.curselection()
   index = selection[0]
   value = event.widget.get(index)
-  
   result.set(value)
-  print(index,' -> ',value)
+
+  return value
 
 # open file dialog
 def openFile():
@@ -31,7 +33,6 @@ def openFile():
     if (len(window.filename) > 0):
         f_file_link.insert(0, window.filename)
         f_file_link.grid()
-        # db_button.grid()
     
 # connect to DB
 def connectToDB():
@@ -66,7 +67,7 @@ def insertFile():
     except Exception as e:
         print(e)
     finally:
-        #message about inserting
+        # message about inserting
         if (len(f_file_link.get()) > 0):
             messagebox.showinfo(title="Message by db", message=f"{f_file_link.get()} insert to DB")
         else:
@@ -79,7 +80,6 @@ def insertFile():
 
 # show files
 def showFiles():
-    # close_button['state'] = 'normal'
     global list_box
     list_box = Listbox(window)
     try:
@@ -88,23 +88,24 @@ def showFiles():
         cur = conn.cursor()
         cur.execute("SELECT *, oid FROM files")
         files = cur.fetchall()
-        # list_box = Listbox(window, listvariable=files)
-        # list_box.grid(row=4, column=1, padx=40)
+
         if(len(files) == 0):
             messagebox.showinfo(title="INFO", message="NO RECORDS")
             return
+
         close_button['state'] = 'normal'
         info_button['state'] = 'disable'
+        download_button['state'] = 'normal'
         for file in files:
             list_box.insert(END, file[1])
             list_box.grid(row=4, column=1, padx=40, pady=40)
-        # list_box.select_set(0)
-        for i in list_box.curselection():
-            print(list_box.get(i))
+
+        # get value from LB
+        list_box.bind('<<ListboxSelect>>', getElement)
+
     except Exception as e:
         print(e)
     finally:
-        # info_button['state'] = 'disable'
         conn.close()
 
 
@@ -112,6 +113,27 @@ def closeFiles():
     list_box.destroy()
     info_button['state'] = 'normal'
     close_button['state'] = 'disable'
+    download_button['state'] = 'disable'
+
+
+
+def download():
+    print(result.get())
+    os.chdir(path)
+    file_url = result.get()
+    # file_name_aft_click = filename.get()
+    
+    r = requests.get(file_url, stream= True)
+    total_size = int(r.headers['content-length'])
+    status = Label(win, text="Downloading PDF File...", font="Arial 11", relief=SUNKEN, anchor=W)
+    status.pack(side=BOTTOM, fill=X)
+    with open(file_url, 'wb') as f:
+        for data in tqdm(iterable=r.iter_content(chunk_size = 1024), total=total_size/1024, unit="KB"):
+            f.write(data)
+    # m_box.showinfo("Download Compleated","Your File Successfully Downloaded")
+    # status.forget()
+  
+
 
 
 # button for insert
@@ -137,20 +159,13 @@ info_button.grid(row=3, column=0, padx=20)
 close_button = Button(window, text="Close files", command=lambda: closeFiles(), state="disable")
 close_button.grid(row=3, column=2, padx=20)
 
-# result = StringVar()
+# button for download
+download_button = Button(window, text="download", command=lambda: download(), state="disable")
+download_button.grid(row=3, column=1, padx=20, pady=20)
 
-# print(result)
-
-# list_box
-# list_box = tk.Listbox(root, listvariable=var2)
-# list_box.grid(row = 0, column = 1)
-# list_box.bind('<<ListboxSelect>>', getElement) #Select click
-
-# List of files
-
-# list_box = Listbox(window)
-
-# window.bind("<Return>",exit_gui)
+# name from lb
+result = StringVar()
+# url = StringVar()
 
 window.mainloop()
  
