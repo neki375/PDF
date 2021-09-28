@@ -9,14 +9,20 @@ import sqlite3
 # from tqdm import tqdm
 
 path = os.path.dirname(os.path.abspath(__file__))
+iconPath = os.path.join(path, "pdf.png")
 
 window = Tk()
 # background color
 window["bg"] = "#2E2E2E"
 # name
 window.title("PDF Downloader")
-# size
+# file icon
+# window.iconphoto(False, PhotoImage(file=iconPath))
+
+# window size
 window.geometry("650x500")
+window.resizable(False, False)
+
 window.columnconfigure(1, weight=100)
 
 
@@ -26,7 +32,7 @@ def getElement(event):
         selection = event.widget.curselection()
         index = selection[0]
         value = event.widget.get(index)
-        resultName.set(value)
+        result_name.set(value)
     except Exception as e:
         pass
 
@@ -44,6 +50,7 @@ def openFile():
     )
 
     if (len(window.filename) > 0):
+        f_file_link["state"] = "normal"
         f_file_link.insert(0, window.filename)
         f_file_link.grid()
     
@@ -85,6 +92,7 @@ def insertFile():
             messagebox.showinfo(title="Message by db", message=f"{f_file_link.get()} insert to DB")
             f_name.delete(0, END)
             f_file_link.delete(0, END)
+            f_file_link["state"] = "disable"
             conn.close()
     else:
         messagebox.showinfo(title="Message by db", message="Fill in all the fields")
@@ -97,11 +105,12 @@ def showFiles():
     global list_id_label
     global list_id
     global f_id
+    global f_id_label
     # ids list
-    list_id = Listbox(window)
+    list_id = Listbox(window, bg="#2E2E2E")
     list_id.config(width=4)
     # filenames list
-    list_names = Listbox(window)
+    list_names = Listbox(window, bg="#2E2E2E", fg="white")
     list_names.config(width=50)
     try:
         conn = sqlite3.connect(f'{path}/files.db')
@@ -113,15 +122,18 @@ def showFiles():
             messagebox.showinfo(title="INFO", message="NO RECORDS")
             return
 
+        # label for id
+        f_id_label = Label(window, text="Write ID", bg="#2E2E2E", fg="white")
+        f_id_label.grid(row=3, column=1, padx=(0, 170))
         # input for id
         f_id = Entry(window, width=6)
-        f_id.grid(row=3, column=1, sticky=E)
+        f_id.grid(row=3, column=1, sticky=W)
         # rows name from db
-        list_label = Label(window, text="FILENAME")
+        list_label = Label(window, text="FILENAME", bg="#7E7E7E", fg="white")
         list_label.config(width=50)
         list_label.grid(row=4, column=1)
         # rows id from db
-        list_id_label = Label(window, text="ID")
+        list_id_label = Label(window, text="ID", bg="#7E7E7E", fg="white")
         list_id_label.config(width=4)
         list_id_label.grid(row=4, column=0, sticky=E)
 
@@ -174,6 +186,8 @@ def closeFiles():
     list_label["bg"] = "#2E2E2E"
     list_id_label["text"] = ""
     list_id_label["bg"] = "#2E2E2E"
+    f_id_label["text"] = ""
+    f_id_label["bg"] = "#2E2E2E"
     info_button['state'] = 'normal'
     close_button['state'] = 'disable'
     download_button['state'] = 'disable'
@@ -182,24 +196,27 @@ def closeFiles():
 
 # download file
 def download():
-    save_path = None
-    file_format = resultName.get().split("/")[-1].split(".")[-1]
+    file_name = result_name.get().split("/")[-1].split(".")[0]
+    window.filename = filedialog.asksaveasfile(
+        initialfile=file_name, 
+        title='Files', 
+        filetypes=[
+            ('pdf file', '.pdf'), 
+            ('image files', ('.png', '.jpg'))
+        ]
+    )
+    save_path = window.filename.name
+    file_format = window.filename.name.split("/")[-1].split(".")[-1]
     if file_format == "pdf":
         # for pdf
-        save_path = os.path.join(path, "pdf_files")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
         writer = PdfWriter()
-        reader = PdfReader(resultName.get())
+        reader = PdfReader(result_name.get())
         writer.addpage(reader.pages[0])
-        writer.write(f"{save_path}/{datetime.now().strftime('%d_%m_%Y')}.pdf")
+        writer.write(save_path)
     elif file_format == "png":
-        save_path = os.path.join(path, "png_files")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
         # for png
-        img = Image.open(resultName.get())
-        img.save(f"{save_path}/{datetime.now().strftime('%d_%m_%Y')}.png")
+        img = Image.open(result_name.get())
+        img.save(save_path)
 
     messagebox.showinfo(title="INFO", message=f"Download is complete")
     closeFiles()
@@ -209,13 +226,15 @@ def download():
 
 # inputs
 f_name = Entry(window, width=30)
-f_name.grid(row=0, column=1, padx=20)
-f_file_link = Entry(window, width=30)
+f_name.grid(row=0, column=1, padx=20, pady=(50, 0))
+f_file_link = Entry(window, width=30, state="disable")
 f_file_link.grid(row=1, column=1, padx=20)
 
 # labels
-f_name_label = Label(window, text="Name")
-f_name_label.grid(row=0, column=0, padx=40)
+root_label = Label(window, text="Fill in inputs", font=("Helvetica", 14), bg="#2E2E2E", fg="white")
+root_label.grid(row=0, column=1, padx=40)
+f_name_label = Label(window, text="Name", bg="#2E2E2E", fg="white")
+f_name_label.grid(row=0, column=0, padx=40, pady=(50, 0))
 
 
 #button for choose files
@@ -223,7 +242,7 @@ button = Button(window, bg="#FFFFFF", border=0, text="Choose file", command=open
 button.grid(row=1, column=0, padx=40)
 
 # button for insert
-db_button = Button(window, text="Insert", border=0, command=lambda: insertFile())
+db_button = Button(window, bg="#FFFFFF", border=0, text="Insert", command=lambda: insertFile())
 db_button.grid(row=1, column=2)
 
 # button for show files
@@ -236,14 +255,14 @@ close_button.grid(row=3, column=2, padx=20)
 
 # button for download
 download_button = Button(window, bg="#FFFFFF", border=0, text="Download", command=lambda: download(), state="disable")
-download_button.grid(row=3, column=1, padx=20, pady=20, sticky=W)
+download_button.grid(row=3, column=1, padx=20, pady=20, sticky=E)
 
 # button for delete by id
 delete_button = Button(window, bg="#FFFFFF", border=0, text="Delete", command=lambda: delete(), state="disable")
-delete_button.grid(row=3, column=1, padx=20, pady=20)
+delete_button.grid(row=3, column=1)
 
 # name from lb
-resultName = StringVar()
+result_name = StringVar()
 
 # create table if not exists
 connectToDB()
