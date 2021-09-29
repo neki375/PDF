@@ -1,15 +1,15 @@
 import os
+import sqlite3
 from tkinter import *
-from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 from PIL import ImageTk, Image
 from pdfrw import PdfWriter, PdfReader
-import sqlite3
-# import requests
-# from tqdm import tqdm
+from tkinter import ttk, filedialog, messagebox
+
 
 path = os.path.dirname(os.path.abspath(__file__))
 iconPath = os.path.join(path, "pdf.png")
+
 
 window = Tk()
 # background color
@@ -18,11 +18,9 @@ window["bg"] = "#2E2E2E"
 window.title("PDF Downloader")
 # file icon
 # window.iconphoto(False, PhotoImage(file=iconPath))
-
 # window size
 window.geometry("650x500")
 window.resizable(False, False)
-
 window.columnconfigure(1, weight=100)
 
 
@@ -205,24 +203,24 @@ def download():
             ('image files', ('.png', '.jpg'))
         ]
     )
-    save_path = window.filename.name
-    file_format = window.filename.name.split("/")[-1].split(".")[-1]
-    if file_format == "pdf":
-        # for pdf
-        writer = PdfWriter()
-        reader = PdfReader(result_name.get())
-        writer.addpage(reader.pages[0])
-        writer.write(save_path)
-    elif file_format == "png":
-        # for png
-        img = Image.open(result_name.get())
-        img.save(save_path)
 
-    messagebox.showinfo(title="INFO", message=f"Download is complete")
-    closeFiles()
+    if window.filename:
+        save_path = window.filename.name
+        file_format = window.filename.name.split("/")[-1].split(".")[-1]
+        if file_format == "pdf":
+            # for pdf
+            writer = PdfWriter()
+            reader = PdfReader(result_name.get())
+            writer.addpage(reader.pages[0])
+            writer.write(save_path)
+        elif file_format == "png":
+            # for png
+            img = Image.open(result_name.get())
+            img.save(save_path)
+
+        messagebox.showinfo(title="INFO", message=f"Download is complete")
+        closeFiles()
   
-
-
 
 # inputs
 f_name = Entry(window, width=30)
@@ -266,6 +264,7 @@ result_name = StringVar()
 
 # create table if not exists
 connectToDB()
+
 
 if __name__ == "__main__":
     window.mainloop()
