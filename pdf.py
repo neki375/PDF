@@ -6,7 +6,6 @@ from PIL import ImageTk, Image
 from pdfrw import PdfWriter, PdfReader
 from tkinter import ttk, filedialog, messagebox
 
-
 path = os.path.dirname(os.path.abspath(__file__))
 iconPath = os.path.join(path, "pdf.png")
 
@@ -60,6 +59,7 @@ def connectToDB():
         cur = conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS files(
             name text,
+            file blob,
             file_link text,
             insert_date timestamptz
         )""")
@@ -76,9 +76,11 @@ def insertFile():
         try:
             conn = sqlite3.connect(f'{path}/files.db')
             cur = conn.cursor()
-            cur.execute("INSERT INTO files VALUES(:name, :file_link, :insert_date)",
+            file = convertToBinaryData(f_file_link.get())
+            cur.execute("INSERT INTO files VALUES(:name, :file, :file_link, :insert_date)",
                 {
-                    "name":  f_name.get(),
+                    "name": f_name.get(),
+                    "file": file,
                     "file_link": f_file_link.get(),
                     "insert_date": datetime.now() 
                 }
@@ -94,6 +96,39 @@ def insertFile():
             conn.close()
     else:
         messagebox.showinfo(title="Message by db", message="Fill in all the fields")
+
+# get file by id
+def getFileById():
+    oid = f_id.get()
+    try:
+        conn = sqlite3.connect(f'{path}/files.db')
+        cur = conn.cursor()
+        cur.execute("SELECT file, file_link FROM files WHERE oid=%s"%(oid))
+        record = cur.fetchone()
+
+        return record
+        # conn.commit()
+    except Exception as e:
+        print(e)
+    finally:
+        conn.close()
+
+
+# converting pdf to binary
+def convertToBinaryData(filename):
+    # Convert digital data to binary format
+    with open(filename, 'rb') as file:
+        blobData = file.read()
+    return blobData
+
+
+# write pdf
+def writeTofile(data, filename):
+    print(filename)
+    # Convert binary data to proper format and write it on Hard Disk
+    with open(filename, 'wb') as file:
+        file.write(data)
+    print("Stored blob data into: ", filename, "\n")
 
 
 # show files
@@ -141,9 +176,9 @@ def showFiles():
         delete_button['state'] = 'normal'
 
         for file in files:
-            list_names.insert(END, file[1])
+            list_names.insert(END, file[2])
             list_names.grid(row=5, column=1, sticky=E)
-            list_id.insert(END, file[3])
+            list_id.insert(END, file[4])
             list_id.grid(row=5, column=0, sticky=E)
 
         list_id.configure(state=DISABLED)
@@ -156,11 +191,11 @@ def showFiles():
     finally:
         conn.close()
 
+
 def delete():
     oid = f_id.get()
     if not oid:
         messagebox.showinfo(title="INFO", message=f"Id not filled")
-        # return
     else:
         try:
             conn = sqlite3.connect(f'{path}/files.db')
@@ -194,9 +229,12 @@ def closeFiles():
 
 # download file
 def download():
-    file_name = result_name.get().split("/")[-1].split(".")[0]
+    data = getFileById()[0]
+    filename = getFileById()[1].split("/")[-1].split(".")[0]
+    # file_name = result_name.get().split("/")[-1].split(".")[0]
+    # print(file_name)
     window.filename = filedialog.asksaveasfile(
-        initialfile=file_name, 
+        initialfile=f"{filename}.pdf", 
         title='Files', 
         filetypes=[
             ('pdf file', '.pdf'), 
@@ -205,18 +243,19 @@ def download():
     )
 
     if window.filename:
-        save_path = window.filename.name
-        file_format = window.filename.name.split("/")[-1].split(".")[-1]
-        if file_format == "pdf":
-            # for pdf
-            writer = PdfWriter()
-            reader = PdfReader(result_name.get())
-            writer.addpage(reader.pages[0])
-            writer.write(save_path)
-        elif file_format == "png":
-            # for png
-            img = Image.open(result_name.get())
-            img.save(save_path)
+        writeTofile(data, window.filename.name)
+    #     save_path = window.filename.name
+    #     file_format = window.filename.name.split("/")[-1].split(".")[-1]
+    #     if file_format == "pdf":
+    #         # for pdf
+    #         writer = PdfWriter()
+    #         reader = PdfReader(result_name.get())
+    #         writer.addpage(reader.pages[0])
+    #         writer.write(save_path)
+    #     elif file_format == "png":
+    #         # for png
+    #         img = Image.open(result_name.get())
+    #         img.save(save_path)
 
         messagebox.showinfo(title="INFO", message=f"Download is complete")
         closeFiles()
